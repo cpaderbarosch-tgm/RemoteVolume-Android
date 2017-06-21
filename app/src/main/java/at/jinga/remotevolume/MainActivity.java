@@ -17,25 +17,21 @@ public class MainActivity extends AppCompatActivity {
     }
 
     protected void connect(View view) {
-        final String ip = ((EditText) findViewById(R.id.ip)).getText().toString();
+        connect(((EditText) findViewById(R.id.ip)).getText().toString());
+    }
 
-        ConnectionManager.serverThread = new Thread() {
-          @Override
-          public void run() {
-              try {
-                  ConnectionManager.server = new Socket(ip, 3131);
-              } catch (IOException e) {
-                  e.printStackTrace();
-              }
-          }
-        };
-        ConnectionManager.serverThread.start();
-        try {
-            ConnectionManager.serverThread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+    protected void connect(final String ip) {
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    ConnectionManager.server = new Socket(ip, 3131);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-        startActivity(new Intent(MainActivity.this, MixerActivity.class));
+                startActivity(new Intent(MainActivity.this, MixerActivity.class));
+            }
+        }.start();
     }
 }
