@@ -2,8 +2,10 @@
 <LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_width="wrap_content"
+    android:layout_height="match_parent"
+    android:layout_marginLeft="10dp"
+    android:layout_marginRight="10dp">
 
     <TextView
         android:id="@+id/name"
@@ -15,7 +17,7 @@
         android:textColor="@color/colorPrimary" />
 
     <at.jinga.remotevolume.VerticalSeekBar
-        android:id="@+id/seekbar"
+        android:id="@+id/slider"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_weight="1"
@@ -28,7 +30,5 @@
         android:layout_height="wrap_content"
         android:minLines="1"
         android:maxLines="1"
-        android:gravity="center_horizontal"
-        android:text="Volume: "/>
-
+        android:gravity="center_horizontal"/>
 </LinearLayout>
