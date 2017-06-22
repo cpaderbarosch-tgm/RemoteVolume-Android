@@ -59,47 +59,8 @@ public class MixerActivity extends AppCompatActivity {
                 out = new PrintWriter(server.getOutputStream(), true);
                 in = new BufferedReader(new InputStreamReader(server.getInputStream()));
 
-                receiveThread = new Thread() {
-                    @Override
-                    public void run() {
-                        try {
-                            while (true) {
-                                String message = in.readLine();
-
-                                AppVolume[] apps = new Gson().fromJson(message, AppVolume[].class);
-
-                                if (visible) {
-                                    update(apps);
-                                } else {
-                                    tempApps = apps;
-                                }
-                            }
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-                    }
-                };
-                receiveThread.start();
-
-                sendThread = new Thread() {
-                    @Override
-                    public void run() {
-                        while (true) {
-                            try {
-                                if (tempCommands.size() > 0) {
-                                    for (Command command : tempCommands) {
-                                        send(command);
-                                    }
-
-                                    tempCommands.clear();
-                                }
-
-                                Thread.sleep(1000);
-                            } catch (InterruptedException e) {}
-                        }
-                    }
-                };
-                sendThread.start();
+                startReceive();
+                startSend();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -130,11 +91,10 @@ public class MixerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        Log.d("abc", "destroy");
         disconnect(null);
         super.onDestroy();
     }
-
-
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -161,34 +121,50 @@ public class MixerActivity extends AppCompatActivity {
 
 
 
-    protected void send(Command command) {
-        if (server != null && server.isConnected()) {
-            out.print(new Gson().toJson(command));
-            out.flush();
-        }
+    public void startReceive() {
+        receiveThread = new Thread() {
+            @Override
+            public void run() {
+                try {
+                    while (true) {
+                        String message = in.readLine();
+
+                        AppVolume[] apps = new Gson().fromJson(message, AppVolume[].class);
+
+                        if (visible) {
+                            update(apps);
+                        } else {
+                            tempApps = apps;
+                        }
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        };
+        receiveThread.start();
     }
 
-    public void disconnect(View view) {
-        if (server != null && server.isConnected()) {
-            receiveThread.interrupt();
-            sendThread.interrupt();
+    public void startSend() {
+        sendThread = new Thread() {
+            @Override
+            public void run() {
+                while (true) {
+                    try {
+                        if (tempCommands.size() > 0) {
+                            for (Command command : tempCommands) {
+                                send(command);
+                            }
 
-            out.println("disconnect");
+                            tempCommands.clear();
+                        }
 
-            out.close();
-            try {
-                in.close();
-            } catch (IOException e) {
-                e.printStackTrace();
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {}
+                }
             }
-
-            try {
-                server.close();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            server = null;
-        }
+        };
+        sendThread.start();
     }
 
     public void update(final AppVolume[] apps) {
@@ -198,40 +174,38 @@ public class MixerActivity extends AppCompatActivity {
 
                 mixer.removeAllViews();
 
-                mixer.addView(new PitcherView(MixerActivity.this, apps[0].Name, apps[0].Volume));
+                mixer.addView(new Pitcher(MixerActivity.this, apps[0].Name, apps[0].Volume));
 
                 for (int i = 1; i < apps.length; ++i) {
-                    float volume = apps[0].Volume * apps[i].Volume / 100;
+                    Pitcher pitcher = new Pitcher(MixerActivity.this, apps[i].Name, apps[0].Volume * apps[i].Volume / 100);
 
-                    PitcherView pitcher = new PitcherView(MixerActivity.this, apps[i].Name, volume);
-
-                    ((VerticalSeekBar) pitcher.findViewById(R.id.seekbar)).processId = apps[i].Id;
+                    pitcher.sliderView.processId = apps[i].Id;
 
                     mixer.addView(pitcher);
                 }
 
                 for (int i = 0; i < mixer.getChildCount(); ++i) {
-                    PitcherView pitcher = (PitcherView) mixer.getChildAt(i);
-                    VerticalSeekBar seekbar = (VerticalSeekBar) pitcher.findViewById(R.id.seekbar);
+                    Pitcher pitcher = (Pitcher) mixer.getChildAt(i);
+                    VerticalSeekBar slider = pitcher.sliderView;
 
-                    final Integer pid = seekbar.processId;
+                    final Integer pid = slider.processId;
                     final int i2 = i;
 
-                    seekbar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+                    slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
                         @Override
                         public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                             LinearLayout mixer = (LinearLayout) findViewById(R.id.mixer);
-                            PitcherView pitcher = (PitcherView) mixer.getChildAt(i2);
+                            Pitcher pitcher = (Pitcher) mixer.getChildAt(i2);
 
-                            ((TextView) pitcher.findViewById(R.id.volume)).setText("" + progress);
+                            pitcher.volumeView.setText("" + progress);
 
-                            // Check if a Command for the same App allready exists, if yes -> overwrite
+                            // Check if a Command for the same App already exists, if yes -> overwrite
                             int index = -1;
                             for (Command command : tempCommands) {
                                 if (command.Id == pid) index = tempCommands.indexOf(command);
                             }
 
-                            // Display Value to Real Value
+                            // Display Value to Real Value - Extending Master Volume
                             float level;
                             if (pid != null) {
                                 level = progress / apps[0].Volume * 100;
@@ -277,5 +251,35 @@ public class MixerActivity extends AppCompatActivity {
                 }
             }
         });
+    }
+
+    protected void send(Command command) {
+        if (server != null && server.isConnected()) {
+            out.print(new Gson().toJson(command));
+            out.flush();
+        }
+    }
+
+    public void disconnect(View view) {
+        if (server != null && server.isConnected()) {
+            receiveThread.interrupt();
+            sendThread.interrupt();
+
+            out.println("disconnect");
+
+            out.close();
+            try {
+                in.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                server.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            server = null;
+        }
     }
 }
