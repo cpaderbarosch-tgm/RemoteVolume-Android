@@ -91,7 +91,6 @@ public class MixerActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        Log.d("abc", "destroy");
         disconnect(null);
         super.onDestroy();
     }
